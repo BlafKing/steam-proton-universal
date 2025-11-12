@@ -1,0 +1,8 @@
+{
+    "$schema": "https://raw.githubusercontent.com/SteamClientHomebrew/Millennium/main/src/sys/plugin-schema.json",
+
+    "name": "proton_universal_drive",
+    "common_name": "Proton Universal Drive",
+    "version": "1.0.0",
+    "description": "Creates a unified Proton Windows drive across all Steam games using symlinks."
+}
