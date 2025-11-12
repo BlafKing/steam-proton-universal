@@ -2,7 +2,7 @@
 
 # Proton Universal Drive Plugin
 
-A Millennium plugin that lets you use a unified Proton Windows drive across all Steam games using symlinks.
+A [Millennium](https://steambrew.app/) plugin that lets you use a unified Proton Windows drive across all Steam games using symlinks.
 
 </div>
 
@@ -148,7 +148,7 @@ The plugin hooks into Steam's game launch process and:
 
 ## 📋 Requirements
 
-- Millennium (plugin made on v2.30.0+)
+- [Millennium](https://steambrew.app/) (plugin made on v2.30.0+)
 - Steam Client (any recent version)
 
 ## 📄 License
