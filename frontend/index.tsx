@@ -1,15 +1,29 @@
-import { definePlugin, callable } from '@steambrew/client';
+import { definePlugin, callable, Field, TextField, IconsModule } from '@steambrew/client';
+import React, { useState, useEffect } from 'react';
+
+// JSX namespace declaration for JSX factory
+declare global {
+	namespace JSX {
+		interface IntrinsicElements {
+			[elemName: string]: any;
+		}
+	}
+}
 
 // Plugin state tracking
 let hooksInjected = false;
 
-// Configuration caching to avoid excessive backend calls
-let configCache: any = null;
-let lastConfigFetch = 0;
-const CONFIG_CACHE_TTL = 1000; // Cache timeout in milliseconds
+// Plugin configuration with defaults
+interface PluginConfig {
+	protonPrefixPath: string;
+}
+
+let pluginConfig: PluginConfig = {
+	protonPrefixPath: ''
+};
 
 const plugin = {
-	prefix: '%Proton Universal Drive%c',
+	prefix: '%cProton Universal Prefix%c',
 	style: 'color: #cdd6f4; background-color: #746292; padding: 2px 4px; border-radius: 3px;',
 
 	log(...args: any[]): void {
@@ -22,40 +36,46 @@ const plugin = {
 };
 
 /**
- * Fetches current plugin configuration from backend with caching
+ * Gets the current configuration from memory
  * @returns Current plugin configuration object
  */
-async function fetchCurrentConfig() {
-	const now = Date.now();
+function getCurrentConfig() {
+	return pluginConfig;
+}
 
-	// Return cached config if still fresh
-	if (configCache && (now - lastConfigFetch) < CONFIG_CACHE_TTL) {
-		return configCache;
-	}
+/**
+ * Retrieves current launch options for a specific Steam app
+ * Uses Steam's RegisterForAppDetails API to get real-time app data
+ * @param appId - Steam App ID as string
+ * @returns Promise resolving to current launch options string
+ */
+async function getCurrentLaunchOptions(appId: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		try {
+			const numericAppId = parseInt(appId);
 
-	try {
-		// Fetch live config from backend using callable API
-		const getHookConfig = callable<[], string>("Backend.get_hook_config");
-		const configJson = await getHookConfig();
-		const config = JSON.parse(configJson);
+			// Register for app details callback
+			const unregister = window.SteamClient.Apps.RegisterForAppDetails(numericAppId, (appDetails) => {
+				try {
+					const launchOptions = appDetails.strLaunchOptions || '';
+					unregister.unregister();
+					resolve(launchOptions);
+				} catch (error) {
+					unregister.unregister();
+					reject(error);
+				}
+			});
 
-		// Update cache
-		configCache = config;
-		lastConfigFetch = now;
+			// Timeout protection in case callback never fires
+			setTimeout(() => {
+				unregister.unregister();
+				reject(new Error(`Timeout waiting for app details for app ${appId}`));
+			}, 5000);
 
-		return config;
-	} catch (error) {
-		plugin.error('Failed to fetch config from backend:', error);
-
-		// Fallback to safe defaults
-		const defaultConfig = {
-			protonDrivePath: ''
-		};
-
-		configCache = defaultConfig;
-		lastConfigFetch = now;
-		return defaultConfig;
-	}
+		} catch (error) {
+			reject(error);
+		}
+	});
 }
 
 /**
@@ -113,22 +133,31 @@ function injectLaunchHooks() {
 	if (hooksInjected) return;
 	plugin.log('Injecting launch hooks...');
 
-	// Hook Steam's RunGame method to capture app launch attempts
+	// Hook Steam's RunGame method to capture app launch attempts and create symlinks
 	if (window.SteamClient && window.SteamClient.Apps && window.SteamClient.Apps.RunGame) {
 		const originalRunGame = window.SteamClient.Apps.RunGame;
 		window.SteamClient.Apps.RunGame = async function (appId: string, ...args: any[]) {
 			plugin.log(`Launching app ${appId}`);
 			
-			const config = await fetchCurrentConfig();
+			const config = getCurrentConfig();
 
-			// Check if protonDrivePath is configured
-			if (!config.protonDrivePath) {
-				plugin.log('No proton drive path configured, skipping symlink creation.');
+			// Check if protonPrefixPath is configured
+			if (!config.protonPrefixPath) {
+				plugin.log('No proton prefix path configured, skipping symlink creation.');
 				return originalRunGame.apply(this, [appId, ...args]);
 			}
 
 			try {
-				// Get the compatdata path for this app
+				// Step 1: Fetch launch options to check for -disableSymlink flag
+				const launchOptions = await getCurrentLaunchOptions(appId);
+				plugin.log(`Launch options: "${launchOptions}"`);
+
+				if (launchOptions.includes('-disableSymlink')) {
+					plugin.log(`App ${appId} has -disableSymlink flag, skipping symlink creation.`);
+					return originalRunGame.apply(this, [appId, ...args]);
+				}
+
+				// Step 2: Get the compatdata path for this app
 				const compatdataPath = await getAppCompatdataPath(parseInt(appId));
 				
 				if (!compatdataPath) {
@@ -138,9 +167,13 @@ function injectLaunchHooks() {
 
 				plugin.log(`Compatdata path for app ${appId}: ${compatdataPath}`);
 
-				// Call backend to create symlinks
-				const createSymlinks = callable<[Record<string, string>], string>("Backend.create_symlinks");
-				const resultJson = await createSymlinks({ compatdata_path: compatdataPath, app_id: appId }) as string;
+				// Step 3: Call backend to create symlinks BEFORE launching the game
+				const createSymlinks = callable<[{ compatdata_path: string; app_id: string; proton_prefix_path: string }], string>("create_symlinks");
+				const resultJson = await createSymlinks({ 
+					compatdata_path: compatdataPath, 
+					app_id: appId, 
+					proton_prefix_path: config.protonPrefixPath 
+				}) as string;
 				const result = JSON.parse(resultJson);
 
 				if (result.success) {
@@ -163,12 +196,90 @@ function injectLaunchHooks() {
 }
 
 /**
+ * Settings component for the in-steam config UI
+ */
+const SingleSetting = (props: { name: keyof PluginConfig; type: string; label: string; description: string; }) => {
+	const [textValue, setTextValue] = useState('');
+
+	const saveConfig = () => {
+		localStorage.setItem("proton_universal_prefix.config", JSON.stringify(pluginConfig));
+		plugin.log('Configuration saved:', pluginConfig);
+	};
+
+	useEffect(() => {
+		if (props.type === "text") {
+			setTextValue(pluginConfig[props.name]);
+		}
+	}, []);
+
+	if (props.type === "text") {
+		return (
+			<Field label={props.label} description={props.description} bottomSeparator="standard" focusable>
+				<TextField 
+					value={textValue} 
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => { 
+						const value = e.currentTarget.value;
+						setTextValue(value);
+						pluginConfig[props.name] = value; 
+						saveConfig(); 
+					}} 
+				/>
+			</Field>
+		);
+	}
+	return null;
+};
+
+const SettingsContent = () => {
+	return (
+		<>
+			<style>{`
+				.DialogInput_Wrapper._DialogLayout.Panel {
+					width: 100%;
+					max-width: 400px;
+				}
+				div:has(> .DialogInput_Wrapper._DialogLayout.Panel) {
+					justify-content: flex-end;
+				}
+				.proton-universal-prefix-settings > div > div > div:nth-child(1) {
+					flex-grow: 0 !important;
+				}
+				.proton-universal-prefix-settings > div > div > div:nth-child(2) {
+					flex-grow: 1;
+				}
+			`}</style>
+			<div className="proton-universal-prefix-settings">
+				<SingleSetting 
+					name="protonPrefixPath" 
+					type="text" 
+					label="Proton Prefix Path" 
+					description="Path to your universal Proton Windows prefix (e.g., /home/user/ProtonPrefix). Leave empty to disable." 
+				/>
+			</div>
+		</>
+	);
+};
+
+/**
  * Millennium plugin entry point
- * Initializes the Proton Universal Drive plugin
+ * Initializes the Proton Universal Prefix plugin
  */
 export default definePlugin(() => {
+	plugin.log('Proton Universal Prefix plugin initializing...');
+	
+	// Load configuration from localStorage
+	const storedConfig = JSON.parse(localStorage.getItem("proton_universal_prefix.config") || "{}");
+	pluginConfig = { ...pluginConfig, ...storedConfig };
+	plugin.log('Loaded config:', pluginConfig);
+	
 	// Inject hooks on plugin load
 	setTimeout(injectLaunchHooks, 500);
+	
+	plugin.log('Plugin initialization complete');
 
-	return null; // No UI component needed
+	return {
+		title: "Proton Universal Prefix",
+		icon: <IconsModule.Settings />,
+		content: <SettingsContent />,
+	};
 });

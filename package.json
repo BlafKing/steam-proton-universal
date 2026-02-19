@@ -12,21 +12,29 @@
 		"@types/webpack": "^5.28.5"
 	},
 	"type": "module",
-	"name": "proton-universal-drive",
-	"version": "1.0.0",
-	"description": "A plugin that creates a unified Proton Windows drive across all Steam games using symlinks.",
+	"name": "proton-universal-prefix",
+	"version": "1.1.0",
+	"description": "A plugin that creates a unified Proton Windows prefix across all Steam games using symlinks.",
 	"main": "./frontend/index.tsx",
 	"author": "BlafKing",
 	"license": "MIT",
-	"keywords": ["millennium", "steam", "proton", "unified-drive", "symlinks", "plugin"],
+	"keywords": [
+		"millennium",
+		"steam",
+		"proton",
+		"unified-prefix",
+		"symlinks",
+		"plugin",
+		"proton-prefix"
+	],
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/BlafKing/steam-proton-universal.git"
 	},
 	"dependencies": {
 		"@steambrew/api": "^5.2.4",
-		"@steambrew/webkit": "^5.3.3",
 		"@steambrew/client": "^5.3.2",
-		"@steambrew/ttc": "^2.5.3"
+		"@steambrew/ttc": "^2.8.7",
+		"@steambrew/webkit": "^5.3.3"
 	}
 }
