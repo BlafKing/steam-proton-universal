@@ -65,6 +65,12 @@ The plugin listens for Steam game launch actions and:
 
 ## 📝 Changelog
 
+### v1.1.1:
+    - Listens for Steam's game launch actions instead of patching RunGame
+    - Removed custom settings styling
+    - Keeps the original compatdata folder if copying it to the universal prefix fails
+    - Code cleanup
+
 ### v1.1.0:
     - Switched from local config file to Millennium's in-steam config UI
     

@@ -2,7 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/SteamClientHomebrew/Millennium/main/src/sys/plugin-schema.json",
     "name": "proton_universal_prefix",
     "common_name": "Proton Universal Prefix",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Creates a unified Proton Windows prefix across all Steam games using symlinks.",
     "backendType": "lua"
 }
