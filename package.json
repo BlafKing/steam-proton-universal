@@ -4,12 +4,7 @@
 		"build": "millennium-ttc --build prod"
 	},
 	"devDependencies": {
-		"@babel/preset-env": "^7.26.0",
-		"@babel/preset-react": "^7.25.9",
-		"@babel/traverse": "^7.27.0",
-		"@types/react": "^19.1.6",
-		"@types/react-dom": "^19.1.6",
-		"@types/webpack": "^5.28.5"
+		"@types/react": "^19.1.6"
 	},
 	"type": "module",
 	"name": "proton-universal-prefix",
@@ -32,9 +27,7 @@
 		"url": "https://github.com/BlafKing/steam-proton-universal.git"
 	},
 	"dependencies": {
-		"@steambrew/api": "^5.2.4",
 		"@steambrew/client": "^5.3.2",
-		"@steambrew/ttc": "^2.8.7",
-		"@steambrew/webkit": "^5.3.3"
+		"@steambrew/ttc": "^2.8.7"
 	}
 }
