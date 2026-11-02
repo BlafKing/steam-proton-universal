@@ -49,7 +49,7 @@ You can disable symlink creation for specific games by adding `-disableSymlink` 
 
 ## 🔧 How It Works
 
-The plugin hooks into Steam's game launch process and:
+The plugin listens for Steam game launch actions and:
 
 1. Detects when a game is being launched
 2. Finds the game's compatdata folder location
